@@ -11,9 +11,12 @@ namespace Microsoft.NET.Build.Tasks
 {
     internal class ReferenceInfo
     {
+        private const string RevDeBugAddonProperty = "RevDeBugAddon";
+
         public string Name { get; }
         public string Version { get; }
         public string FullPath { get; }
+        public bool RDBAddon { get; }
         public string FileName => Path.GetFileName(FullPath);
 
         private List<ResourceAssemblyInfo> _resourceAssemblies;
@@ -22,11 +25,12 @@ namespace Microsoft.NET.Build.Tasks
             get { return _resourceAssemblies; }
         }
 
-        private ReferenceInfo(string name, string version, string fullPath)
+        private ReferenceInfo(string name, string version, string fullPath, bool rdbAddon)
         {
             Name = name;
             Version = version;
             FullPath = fullPath;
+            RDBAddon = rdbAddon;
 
             _resourceAssemblies = new List<ResourceAssemblyInfo>();
         }
@@ -85,8 +89,9 @@ namespace Microsoft.NET.Build.Tasks
             string fullPath = referencePath.ItemSpec;
             string name = Path.GetFileNameWithoutExtension(fullPath);
             string version = GetVersion(referencePath);
+            bool? rdbAddon = referencePath.GetBooleanMetadata(RevDeBugAddonProperty);
 
-            return new ReferenceInfo(name, version, fullPath);
+            return new ReferenceInfo(name, version, fullPath, rdbAddon.HasValue ? rdbAddon.Value : false);
         }
 
         private static string GetVersion(ITaskItem referencePath)

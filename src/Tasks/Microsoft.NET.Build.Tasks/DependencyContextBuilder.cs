@@ -186,14 +186,39 @@ namespace Microsoft.NET.Build.Tasks
             return dependencies;
         }
 
+
+        private List<Dependency> FilterDependencies(List<Dependency> dependencies, out IList<string> rdbAssets)
+        {
+            rdbAssets = new List<string>();
+            var retList = new List<Dependency>();
+            foreach (var dependency in dependencies)
+            {
+                if (dependency.Name.ToLower().StartsWith("class"))
+                {
+                    rdbAssets.Add($"{dependency.Name}.dll");
+                }
+                else
+                {
+                    retList.Add(dependency);
+                }
+            }
+
+            return retList;
+        }
+
         private RuntimeLibrary GetProjectRuntimeLibrary(
             SingleProjectInfo projectInfo,
             ProjectContext projectContext,
             Dictionary<string, Dependency> dependencyLookup)
         {
-            RuntimeAssetGroup[] runtimeAssemblyGroups = new[] { new RuntimeAssetGroup(string.Empty, projectInfo.OutputName) };
+            IList<string> rdbAssets;
+            List<Dependency> dependencies = FilterDependencies(GetProjectDependencies(projectContext, dependencyLookup), out rdbAssets);
 
-            List<Dependency> dependencies = GetProjectDependencies(projectContext, dependencyLookup);
+            List<RuntimeAssetGroup> runtimeAssemblyGroups = new List<RuntimeAssetGroup>() { new RuntimeAssetGroup(string.Empty, projectInfo.OutputName) };
+            foreach (var asset in rdbAssets)
+            {
+                runtimeAssemblyGroups.Add(new RuntimeAssetGroup(string.Empty, asset));
+            }
 
             return new RuntimeLibrary(
                 type: "project",

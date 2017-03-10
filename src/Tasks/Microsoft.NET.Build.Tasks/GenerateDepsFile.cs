@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyModel;
 using Newtonsoft.Json;
 using NuGet.Frameworks;
 using NuGet.ProjectModel;
+using System.Linq;
 
 namespace Microsoft.NET.Build.Tasks
 {
@@ -94,18 +95,33 @@ namespace Microsoft.NET.Build.Tasks
 
             DependencyContext dependencyContext = new DependencyContextBuilder(mainProject, projectContext)
                 .WithFrameworkReferences(frameworkReferences)
-                .WithDirectReferences(directReferences)
+                .WithDirectReferences(directReferences.Where(dr => !dr.RDBAddon))
                 .WithReferenceProjectInfos(referenceProjects)
                 .WithPrivateAssets(privateAssets)
                 .WithCompilationOptions(compilationOptions)
                 .WithReferenceAssembliesPath(FrameworkReferenceResolver.GetDefaultReferenceAssembliesPath())
                 .Build();
 
-            var writer = new DependencyContextWriter();
-            using (var fileStream = File.Create(DepsFilePath))
+            using (var memStream = new MemoryStream())
             {
-                writer.Write(dependencyContext, fileStream);
+                var writer = new DependencyContextWriter();
+                writer.Write(dependencyContext, memStream);
+
+                var revDeBugAddons = directReferences.Where(dr => dr.RDBAddon).ToList();
+                using (var fileStream = File.Create(DepsFilePath))
+                {
+                    if (revDeBugAddons.Count > 0)
+                    {
+                        new DependencyContextRewriter(dependencyContext, revDeBugAddons).Rewrite(memStream, fileStream);
+                    }
+                    else
+                    {
+                        var content = memStream.GetBuffer();
+                        fileStream.Write(content, 0, content.Length);
+                    }
+                }
             }
+
             _filesWritten.Add(new TaskItem(DepsFilePath));
 
         }
